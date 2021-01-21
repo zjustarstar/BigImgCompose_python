@@ -302,7 +302,7 @@ def create_img(input_path, output_path, image_number, col_num, row_spacing_mm, c
             for i in range(len(imgs)):
                 th_merge = threading.Thread(target=merge_pic, args=(imgs[i], col_num, col_spacing_list,
                                                                            row_spacing_list, output_path + "/" + str(i+1)
-                                                                           + ".jpg", i, len(imgs), progress_text,))
+                                                                           + ".jpg", i, len(imgs), progress_text, dpi,))
                 th_merge.setDaemon(True)
                 th_merge.start()
                 th_merge.join()

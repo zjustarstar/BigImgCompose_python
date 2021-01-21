@@ -16,7 +16,7 @@ def func(string):
     return string.split('.')[0]
 
 
-def merge_pic(images, col_num, col_spacing, row_spacing, output_path, index, n, progress_text):
+def merge_pic(images, col_num, col_spacing, row_spacing, output_path, index, n, progress_text, dpi):
     """
     将多张图片合成一张
     :param images: 源图片数组
@@ -55,7 +55,7 @@ def merge_pic(images, col_num, col_spacing, row_spacing, output_path, index, n, 
 
     try:
         merge_img = Image.fromarray(np.uint8(merge_img))
-        merge_img.save(output_path)
+        merge_img.save(output_path, dpi=(dpi, dpi))
     except:
         tkinter.messagebox.showwarning("警告", "写入错误")
 
@@ -95,7 +95,10 @@ def read_dir(path, pic_num, size, output_path, file_list=None, progress_text=Non
     new_file_list.sort(key=func)
     file_list = new_file_list
 
+    file_list_index = [i for i in range(1, len(file_list)+1)]
+
     df_info = pd.DataFrame(file_list, columns=["子文件夹"])
+    df_info.index = file_list_index
     df_info.to_csv(output_path+"/子文件夹记录.csv", header=False, encoding="utf_8_sig")
 
     now = 1
