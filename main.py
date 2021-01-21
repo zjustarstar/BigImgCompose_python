@@ -248,9 +248,13 @@ def create_img(input_path, output_path, image_number, col_num, row_spacing_mm, c
         try:
             df_excel = pd.read_excel(select_excel)
             file_list = list(df_excel[col_name])
-            dir_num, img_sum_num = check_dir_num(input_path, image_number, file_list)
         except:
-            tkinter.messagebox.showwarning("警告", "excel产品编号列错误")
+            tkinter.messagebox.showwarning("警告", "产品编号列错误")
+            return 0
+        try:
+            dir_num, img_sum_num = check_dir_num(input_path, image_number, file_list)
+        except Exception as e:
+            tkinter.messagebox.showwarning("警告", e)
             return 0
 
     else:
