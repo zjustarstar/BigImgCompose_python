@@ -2,7 +2,7 @@ from tkinter import *
 import tkinter.scrolledtext
 import json
 from merge_pic import *
-from tkinter.filedialog import askdirectory, askopenfilename
+from tkinter.filedialog import askdirectory, askopenfilename, asksaveasfilename
 import tkinter.messagebox
 import pandas as pd
 import threading
@@ -29,7 +29,7 @@ def select_path(path, image_num_info=None):
     path.set(path_)
     if image_num_info:
         dir_num, img_num = check_dir_num(path_)
-        image_num_info.set("子文件夹数目(展开@后):" + str(dir_num) + "\t\t\t总图片数(展开@后):" + str(img_num))
+        image_num_info.set("子文件夹数目:" + str(dir_num) + "\t总图片数:" + str(img_num))
 
 
 def select_file(file):
@@ -65,12 +65,13 @@ def open_ouput_dir(output_path):
     os.startfile(output_path)
 
 
-def check_dir_num(path, pic_num=-1, file_list=None):
+def check_dir_num(path, pic_num=-1, file_list=None, repeat_num_list=None):
     """
     检查子文件夹个数和总图片数
     :param path:
     :param pic_num:
     :param file_list:
+    :param repeat_num_list:
     :return:
     """
     if not os.path.exists(path):
@@ -79,16 +80,17 @@ def check_dir_num(path, pic_num=-1, file_list=None):
         file_list = os.listdir(path)
 
     file_list.sort()
-    new_file_list = deepcopy(file_list)
 
-    for i in range(len(file_list)):
-        if "@" in file_list[i]:
-            repeat_num = file_list[i].split("@")[1]
+    if repeat_num_list:
+        new_file_list = deepcopy(file_list)
+
+        for i in range(len(file_list)):
+            repeat_num = repeat_num_list[i]
             for j in range(int(repeat_num)-1):
                 new_file_list.insert(i, file_list[i])
 
-    new_file_list.sort()
-    file_list = new_file_list
+        new_file_list.sort()
+        file_list = new_file_list
 
     image_total = 0  # 图片总数
 
@@ -97,8 +99,8 @@ def check_dir_num(path, pic_num=-1, file_list=None):
         image_file_list = os.listdir(file_with_path)
         image_file_list.sort()
         image_total = image_total + len(image_file_list)
-        if len(image_file_list) != pic_num and pic_num > 0:
-            tkinter.messagebox.showwarning("警告", file + "子文件夹图片数错误")
+        if len(image_file_list) < pic_num and pic_num > 0:
+            tkinter.messagebox.showwarning("警告", file + "子文件夹图片数少于需求")
             return None
 
     return len(file_list), image_total
@@ -146,7 +148,14 @@ def change_mm_pixel(number, dpi):
     return number/25.4 * dpi
 
 
-def check(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, select_excel, col_name):
+def get_pixel(small_h, small_w, dpi, small_h_pixel, small_w_pixel):
+    small_h_pixel.set(str(round(change_mm_pixel(small_h, dpi)))+"像素")
+    small_w_pixel.set(str(round(change_mm_pixel(small_w, dpi)))+"像素")
+    return True
+
+
+def check(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w,
+                 dpi):
     """
     :param input_path: 用户选择文件夹路径
     :param output_path: 用户选择输出路径
@@ -156,6 +165,7 @@ def check(input_path, output_path, image_number, col_num, row_spacing, col_spaci
     :param col_spacing: 列间距
     :param small_h: 小图高度
     :param small_w: 小图宽度
+    :param dpi:
     :return:
     """
     if not os.path.exists(input_path):
@@ -200,35 +210,84 @@ def check(input_path, output_path, image_number, col_num, row_spacing, col_spaci
     if not is_number(small_w):
         tkinter.messagebox.showwarning("警告", "魔方宽度需要输入数字")
         return 0
+    if not dpi:
+        tkinter.messagebox.showwarning("警告", "缺少dpi")
+        return 0
+    if not dpi.isdigit():
+        tkinter.messagebox.showwarning("警告", "dpi需要输入整数")
+        return 0
 
     return 1
 
 
-def init_window(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, dpi,
-                select_excel, col_name, image_num_info):
+def read_parameter(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, dpi,
+                select_excel, col_name, repeat_num_col, image_num_info):
+    parameter_file = askopenfilename()
+    init_window(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, dpi,
+                select_excel, col_name, repeat_num_col, image_num_info, parameter_file)
 
+
+def save_parameter(input_path, output_path, image_number, col_num, row_spacing_mm, col_spacing_mm, small_h_mm,
+                   small_w_mm, dpi, select_excel, col_name, repeat_num_col):
+    data = [
+        [input_path],
+        [output_path],
+        [str(image_number)],
+        [str(col_num)],
+        [str(row_spacing_mm)],
+        [str(col_spacing_mm)],
+        [str(small_h_mm)],
+        [str(small_w_mm)],
+        [str(dpi)],
+        [str(select_excel)],
+        [str(col_name)],
+        [repeat_num_col]
+    ]
+    df_history = pd.DataFrame(data, index=['选择文件夹', '拼图输出文件夹', '子文件夹中图片数量', '拼图列数',
+                                           '行间距', '列间距', '魔方高度', '魔方宽度', '打印分辨率', 'excel生产任务表',
+                                           'excel产品编号列', 'excel单品生成数量列'],
+                              columns=['最近记录'])
+
+    save_file = asksaveasfilename(filetypes=[('csv', '.csv')])
+    df_history.to_csv(save_file+".csv")
+
+
+def init_window(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, dpi,
+                select_excel, col_name, repeat_num_col, image_num_info, parameter_file=None):
+
+    init_flag = False
+    df_last = None
     if os.path.exists("data/history.csv"):
         df_last = pd.read_csv("data/history.csv")
-        input_path.set(df_last["最近记录"][0])
-        output_path.set(df_last["最近记录"][1])
-        image_number.set(df_last["最近记录"][2])
-        col_num.set(df_last["最近记录"][3])
-        row_spacing.set(df_last["最近记录"][4])
-        col_spacing.set(df_last["最近记录"][5])
-        small_h.set(df_last["最近记录"][6])
-        small_w.set(df_last["最近记录"][7])
-        dpi.set(df_last["最近记录"][8])
-        select_excel.set(df_last["最近记录"][9])
-        col_name.set(df_last["最近记录"][10])
-        if check_dir_num(df_last["最近记录"][0]):
-            dir_num, img_num = check_dir_num(df_last["最近记录"][0])
-            image_num_info.set("子文件夹数目(展开@后):" + str(dir_num) + "\t\t\t总图片数(展开@后):" + str(img_num))
+        init_flag = True
+    if parameter_file and os.path.exists(parameter_file):
+        df_last = pd.read_csv(parameter_file)
+        init_flag = True
+    if init_flag:
+        try:
+            input_path.set(df_last["最近记录"][0])
+            output_path.set(df_last["最近记录"][1])
+            image_number.set(df_last["最近记录"][2])
+            col_num.set(df_last["最近记录"][3])
+            row_spacing.set(df_last["最近记录"][4])
+            col_spacing.set(df_last["最近记录"][5])
+            small_h.set(df_last["最近记录"][6])
+            small_w.set(df_last["最近记录"][7])
+            dpi.set(df_last["最近记录"][8])
+            select_excel.set(df_last["最近记录"][9])
+            col_name.set(df_last["最近记录"][10])
+            repeat_num_col.set(df_last["最近记录"][11])
+            if check_dir_num(df_last["最近记录"][0]):
+                dir_num, img_num = check_dir_num(df_last["最近记录"][0])
+                image_num_info.set("子文件夹数目:" + str(dir_num) + "\t总图片数:" + str(img_num))
+        except:
+            tkinter.messagebox.showwarning("警告", "参数文件错误，请检查文件格式及内容是否正确")
 
 
-def create_img(input_path, output_path, image_number, col_num, row_spacing_mm, col_spacing_mm, small_h_mm, small_w_mm, select_excel,
-               col_name, dpi, progress_text):
+def create_img(input_path, output_path, image_number, col_num, row_spacing_mm, col_spacing_mm, small_h_mm, small_w_mm,
+               select_excel, col_name, dpi, repeat_num_col, progress_text):
     if not check(input_path, output_path, image_number, col_num, row_spacing_mm, col_spacing_mm, small_h_mm, small_w_mm,
-                 select_excel, col_name):
+                 dpi):
         return 0
 
     # 参数处理
@@ -252,13 +311,24 @@ def create_img(input_path, output_path, image_number, col_num, row_spacing_mm, c
             tkinter.messagebox.showwarning("警告", "产品编号列错误")
             return 0
         try:
-            dir_num, img_sum_num = check_dir_num(input_path, image_number, file_list)
+            repeat_num_list = list(df_excel[repeat_num_col])
+        except:
+            tkinter.messagebox.showwarning("警告", "excel单品生成数量列错误")
+            return 0
+        try:
+            if check_dir_num(input_path, image_number, file_list, repeat_num_list):
+                dir_num, img_sum_num = check_dir_num(input_path, image_number, file_list, repeat_num_list)
+            else:
+                return 0
         except Exception as e:
             tkinter.messagebox.showwarning("警告", e)
             return 0
 
     else:
-        dir_num, img_sum_num = check_dir_num(input_path, image_number)
+        if check_dir_num(input_path, image_number):
+            dir_num, img_sum_num = check_dir_num(input_path, image_number)
+        else:
+            return 0
 
     row_num = math.ceil(dir_num / col_num)  # 行数
     row_spacing_list = get_spacing_list(row_spacing, small_h, row_num)
@@ -269,7 +339,7 @@ def create_img(input_path, output_path, image_number, col_num, row_spacing_mm, c
 
     # 最后确认
     large_h, large_w = get_large_image_size(col_num, dir_num, row_spacing_list, col_spacing_list, small_h, small_w)
-    msg_yes_no = tkinter.messagebox.askyesno("提示", "总文件夹数(展开@后):"+str(dir_num)+"\n总图片数(展开@后):" +
+    msg_yes_no = tkinter.messagebox.askyesno("提示", "总文件夹数:"+str(dir_num)+"\n总图片数:" +
                                              str(img_sum_num)+"\n行数:"+str(row_num)+"\n列数:" +
                                              str(col_num)+"\n合成图片大小:("+str(large_w)+"*"+str(large_h) +
                                              ")\n是否开始拼图？")
@@ -277,7 +347,7 @@ def create_img(input_path, output_path, image_number, col_num, row_spacing_mm, c
         if select_excel != '' and select_excel != 'nan':
             df_excel = pd.read_excel(select_excel)
             file_list = list(df_excel[col_name])
-            imgs = read_dir(input_path, image_number, (small_w, small_h), output_path, file_list, progress_text)
+            imgs = read_dir(input_path, image_number, (small_w, small_h), output_path, file_list, repeat_num_list, progress_text)
         else:
             imgs = read_dir(input_path, image_number, (small_w, small_h), output_path, progress_text=progress_text)
         if imgs:
@@ -292,10 +362,12 @@ def create_img(input_path, output_path, image_number, col_num, row_spacing_mm, c
                 [str(small_w_mm)],
                 [str(dpi)],
                 [str(select_excel)],
-                [str(col_name)]
+                [str(col_name)],
+                [repeat_num_col]
             ]
             df_history = pd.DataFrame(data, index=['选择文件夹', '拼图输出文件夹', '子文件夹中图片数量', '拼图列数',
-                                                   '行间距', '列间距', '魔方高度', '魔方宽度', '打印分辨率', 'excel生产任务表', 'excel产品编号列'],
+                                                   '行间距', '列间距', '魔方高度', '魔方宽度', '打印分辨率', 'excel生产任务表',
+                                                   'excel产品编号列', 'excel单品生成数量列'],
                                       columns=['最近记录'])
             if not os.path.exists("data"):
                 os.makedirs("data")
@@ -314,7 +386,8 @@ def create_img(input_path, output_path, image_number, col_num, row_spacing_mm, c
             tkinter.messagebox.showinfo("提示", "合并完成")
 
 
-def start(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, select_excel, col_name, dpi, progress_text):
+def start(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, select_excel,
+          col_name, dpi, repeat_num_col, progress_text):
     """
     :param input_path: 用户选择文件夹路径
     :param output_path: 用户选择输出路径
@@ -327,6 +400,7 @@ def start(input_path, output_path, image_number, col_num, row_spacing, col_spaci
     :param select_excel:
     :param col_name:
     :param dpi:
+    :param repeat_num_col:
     :param progress_text:
     :return:
     """
@@ -335,7 +409,7 @@ def start(input_path, output_path, image_number, col_num, row_spacing, col_spaci
     progress_text.config(state=tkinter.DISABLED)
     th = threading.Thread(target=create_img, args=(input_path, output_path, image_number, col_num, row_spacing,
                                                    col_spacing, small_h, small_w, select_excel, col_name, dpi,
-                                                   progress_text,))
+                                                   repeat_num_col, progress_text,))
     th.setDaemon(True)
     th.start()
 
@@ -413,47 +487,71 @@ class MainPage(object):
         row_spacing = StringVar()  # 行间距
         col_spacing = StringVar()  # 列间距
         small_h = StringVar()  # 小图高度
+        small_h_pixel = StringVar()  # 小图高度像素值
         small_w = StringVar()  # 小图宽度
+        small_w_pixel = StringVar()  # 小图宽度像素值
         dpi = StringVar()  # 大图尺寸
         select_excel = StringVar()  # 指定子文件夹的excel文件
         col_name = StringVar()  # 指定文件中选择的列
+        repeat_num_col = StringVar()  # 指定文件中表示重复数量的列
 
         init_window(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, dpi,
-                    select_excel, col_name, image_num_info)
+                    select_excel, col_name, repeat_num_col, image_num_info)
 
-        Label(self.root, text="选择文件夹:").grid(row=0, column=0)
-        Entry(self.root, textvariable=input_path).grid(row=0, column=1)
-        Button(self.root, text="浏览", command=lambda: select_path(input_path, image_num_info)).grid(row=0, column=2)
+        Label(self.root, text="选择文件夹:").grid(row=0, column=0, sticky=E)
+        Entry(self.root, textvariable=input_path, width=30).grid(row=0, column=1, sticky=W)
+        Button(self.root, text="浏览", command=lambda: select_path(input_path, image_num_info))\
+            .grid(row=0, column=2, sticky=W)
         Label(self.root, textvariable=image_num_info).grid(row=1, columnspan=2)
-        Label(self.root, text="选择拼图输出文件夹:").grid(row=2, column=0)
-        Entry(self.root, textvariable=output_path).grid(row=2, column=1)
-        Button(self.root, text="浏览", command=lambda: select_path(output_path)).grid(row=2, column=2)
-        Label(self.root, text="子文件夹中图片数量:").grid(row=3, column=0)
-        Entry(self.root, textvariable=image_number).grid(row=3, column=1)
-        Label(self.root, text="拼图列数:").grid(row=4, column=0)
-        Entry(self.root, textvariable=col_num).grid(row=4, column=1)
-        Label(self.root, text="行间距(mm):").grid(row=5, column=0)
-        Entry(self.root, textvariable=row_spacing).grid(row=5, column=1)
-        Label(self.root, text="列间距(mm):").grid(row=6, column=0)
-        Entry(self.root, textvariable=col_spacing).grid(row=6, column=1)
-        Label(self.root, text="魔方高度(mm):").grid(row=7, column=0)
-        Entry(self.root, textvariable=small_h).grid(row=7, column=1)
-        Label(self.root, text="魔方宽度(mm):").grid(row=8, column=0)
-        Entry(self.root, textvariable=small_w).grid(row=8, column=1)
-        Label(self.root, text="打印分辨率(像素/英寸):").grid(row=9, column=0)
-        Entry(self.root, textvariable=dpi).grid(row=9, column=1)
-        Label(self.root, text="excel生产任务表:").grid(row=10, column=0)
-        Entry(self.root, textvariable=select_excel).grid(row=10, column=1)
-        Button(self.root, text="浏览", command=lambda: select_file(select_excel)).grid(row=10, column=2)
-        Label(self.root, text="excel产品编号列:").grid(row=11, column=0)
-        Entry(self.root, textvariable=col_name).grid(row=11, column=1)
-        progress_text = tkinter.scrolledtext.ScrolledText(self.root, state=tkinter.DISABLED)
-        progress_text.grid(row=13, columnspan=2)
-        Button(self.root, text="打开结果文件夹", command=lambda: open_ouput_dir(output_path.get())).grid(row=12, column=0)
-        Button(self.root, text="开始拼图", command=lambda: start(input_path.get(), output_path.get(), image_number.get(),
-                                                             col_num.get(), row_spacing.get(), col_spacing.get(),
-                                                             small_h.get(), small_w.get(), select_excel.get(),
-                                                             col_name.get(), dpi.get(), progress_text)).grid(row=12, column=1)
+        Label(self.root, text="选择拼图输出文件夹:").grid(row=2, column=0, sticky=E)
+        Entry(self.root, textvariable=output_path, width=30).grid(row=2, column=1, sticky=W)
+        Button(self.root, text="浏览", command=lambda: select_path(output_path)).grid(row=2, column=2, sticky=W)
+        Label(self.root, text="子文件夹中需要参与拼图的图片数量:").grid(row=3, column=0, sticky=E)
+        Entry(self.root, textvariable=image_number, width=30).grid(row=3, column=1, sticky=W)
+        Label(self.root, text="拼图列数:").grid(row=4, column=0, sticky=E)
+        Entry(self.root, textvariable=col_num, width=30).grid(row=4, column=1, sticky=W)
+        Label(self.root, text="行间距(mm):").grid(row=5, column=0, sticky=E)
+        Entry(self.root, textvariable=row_spacing, width=30).grid(row=5, column=1, sticky=W)
+        Label(self.root, text="列间距(mm):").grid(row=6, column=0, sticky=E)
+        Entry(self.root, textvariable=col_spacing, width=30).grid(row=6, column=1, sticky=W)
+        Label(self.root, text="魔方高度(mm):").grid(row=7, column=0, sticky=E)
+        Entry(self.root, textvariable=small_h, width=30).grid(row=7, column=1, sticky=W)
+        Label(self.root, textvariable=small_h_pixel).grid(row=7, column=2, sticky=W)
+        Label(self.root, text="魔方宽度(mm):").grid(row=8, column=0, sticky=E)
+        Entry(self.root, textvariable=small_w, width=30).grid(row=8, column=1, sticky=W)
+        Label(self.root, textvariable=small_w_pixel).grid(row=8, column=2, sticky=W)
+        Label(self.root, text="打印分辨率(像素/英寸):").grid(row=9, column=0, sticky=E)
+        Entry(self.root, textvariable=dpi, width=30).grid(row=9, column=1, sticky=W)
+        Button(self.root, text="获得魔方尺寸像素值", command=lambda: get_pixel(float(small_h.get()), float(small_w.get()),
+                                                                      int(dpi.get()), small_h_pixel,
+                                                                      small_w_pixel)).grid(row=9, column=2, sticky=W)
+        Label(self.root, text="excel生产任务表:").grid(row=10, column=0, sticky=E)
+        Entry(self.root, textvariable=select_excel, width=30).grid(row=10, column=1, sticky=W)
+        Button(self.root, text="浏览", command=lambda: select_file(select_excel)).grid(row=10, column=2, sticky=W)
+        Label(self.root, text="excel产品编号列:").grid(row=11, column=0, sticky=E)
+        Entry(self.root, textvariable=col_name, width=30).grid(row=11, column=1, sticky=W)
+        Label(self.root, text="excel单品生成数量列:").grid(row=12, column=0, sticky=E)
+        Entry(self.root, textvariable=repeat_num_col, width=30).grid(row=12, column=1, sticky=W)
+        progress_text = tkinter.scrolledtext.ScrolledText(self.root, width=70, state=tkinter.DISABLED)
+        progress_text.grid(row=14, columnspan=3)
+        Button(self.root, text="读取已有参数",
+               command=lambda: read_parameter(input_path, output_path, image_number, col_num, row_spacing, col_spacing,
+                                              small_h, small_w, dpi, select_excel, col_name, repeat_num_col,
+                                              image_num_info)).grid(row=13, column=0, sticky=W, padx=20)
+        Button(self.root, text="保存当前参数",
+               command=lambda: save_parameter(input_path.get(), output_path.get(), image_number.get(), col_num.get(),
+                                              row_spacing.get(), col_spacing.get(), small_h.get(), small_w.get(),
+                                              dpi.get(), select_excel.get(), col_name.get(),
+                                              repeat_num_col.get())).grid(row=13, column=0, sticky=E)
+        Button(self.root, text="打开结果文件夹", command=lambda: open_ouput_dir(output_path.get())).grid(row=13, column=1,
+                                                                                                  sticky=E)
+        Button(self.root, text="开始拼图",
+               command=lambda: start(input_path.get(), output_path.get(), image_number.get(), col_num.get(), row_spacing.
+                                     get(), col_spacing.get(), small_h.get(), small_w.get(), select_excel.get(),
+                                     col_name.get(), dpi.get(), repeat_num_col.get(), progress_text)).grid(row=13,
+                                                                                                           column=1,
+                                                                                                           sticky=W,
+                                                                                                           padx=40)
 
         self.root.mainloop()
 

@@ -66,34 +66,39 @@ def merge_pic(images, col_num, col_spacing, row_spacing, output_path, index, n, 
     return merge_img
 
 
-def read_dir(path, pic_num, size, output_path, file_list=None, progress_text=None):
+def read_dir(path, pic_num, size, output_path, file_list=None, repeat_num_list=None, progress_text=None):
     """
     :param path: 文件夹路径
     :param pic_num: 子文件夹中的图片个数
     :param size: 读取图片大小
     :param output_path: 输出文件夹
     :param file_list: 子文件夹名称列表
+    :param repeat_num_list:
     :param progress_text: 进度
     :return: 图片列表
     """
     images = []
+    sort_flag = True  # 是否排序
     for i in range(pic_num):
         images.append([])
 
     if not file_list:
         file_list = os.listdir(path)
+    else:
+        sort_flag = False
 
-    file_list.sort()
-    new_file_list = deepcopy(file_list)
+    if repeat_num_list:
+        new_file_list = []
 
-    for i in range(len(file_list)):
-        if "@" in file_list[i]:
-            repeat_num = file_list[i].split("@")[1]
-            for j in range(int(repeat_num)-1):
-                new_file_list.insert(i, file_list[i])
+        for i in range(len(file_list)):
+            repeat_num = repeat_num_list[i]
+            for j in range(int(repeat_num)):
+                new_file_list.append(file_list[i])
 
-    new_file_list.sort(key=func)
-    file_list = new_file_list
+        file_list = new_file_list
+
+    if sort_flag:
+        file_list.sort(key=func)
 
     file_list_index = [i for i in range(1, len(file_list)+1)]
 
@@ -112,9 +117,6 @@ def read_dir(path, pic_num, size, output_path, file_list=None, progress_text=Non
         file_with_path = os.path.join(path, file)
         image_file_list = os.listdir(file_with_path)
         image_file_list.sort(key=func)
-        if len(image_file_list) != pic_num:
-            tkinter.messagebox.showwarning("警告", file + "子文件夹图片数错误")
-            return None
         for i in range(pic_num):
             image_file_with_path = os.path.join(file_with_path, image_file_list[i])
             img = Image.open(image_file_with_path)
