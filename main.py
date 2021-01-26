@@ -26,7 +26,8 @@ def is_number(string):
 
 def select_path(path, image_num_info=None):
     path_ = askdirectory()
-    path.set(path_)
+    if path_:
+        path.set(path_)
     if image_num_info:
         dir_num, img_num = check_dir_num(path_)
         image_num_info.set("子文件夹数目:" + str(dir_num) + "\t总图片数:" + str(img_num))
@@ -34,7 +35,8 @@ def select_path(path, image_num_info=None):
 
 def select_file(file):
     file_ = askopenfilename()
-    file.set(file_)
+    if file_:
+        file.set(file_)
 
 
 def set_image_size_(col_num, dir_num, row_spacing, col_spacing, small_h, small_w, image_size):
@@ -220,11 +222,12 @@ def check(input_path, output_path, image_number, col_num, row_spacing, col_spaci
     return 1
 
 
-def read_parameter(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, dpi,
-                select_excel, col_name, repeat_num_col, image_num_info):
+def read_parameter(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_h_pixel,
+                   small_w, small_w_pixel, dpi, select_excel, col_name, repeat_num_col, image_num_info):
     parameter_file = askopenfilename()
-    init_window(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, dpi,
-                select_excel, col_name, repeat_num_col, image_num_info, parameter_file)
+    if parameter_file:
+        init_window(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_h_pixel,
+                   small_w, small_w_pixel, dpi, select_excel, col_name, repeat_num_col, image_num_info, parameter_file)
 
 
 def save_parameter(input_path, output_path, image_number, col_num, row_spacing_mm, col_spacing_mm, small_h_mm,
@@ -252,8 +255,8 @@ def save_parameter(input_path, output_path, image_number, col_num, row_spacing_m
     df_history.to_csv(save_file+".csv")
 
 
-def init_window(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, dpi,
-                select_excel, col_name, repeat_num_col, image_num_info, parameter_file=None):
+def init_window(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_h_pixel,
+                    small_w, small_w_pixel, dpi, select_excel, col_name, repeat_num_col, image_num_info, parameter_file=None):
 
     init_flag = False
     df_last = None
@@ -280,6 +283,10 @@ def init_window(input_path, output_path, image_number, col_num, row_spacing, col
             if check_dir_num(df_last["最近记录"][0]):
                 dir_num, img_num = check_dir_num(df_last["最近记录"][0])
                 image_num_info.set("子文件夹数目:" + str(dir_num) + "\t总图片数:" + str(img_num))
+            get_pixel(float(small_h.get()), float(small_w.get()),
+                      int(dpi.get()), small_h_pixel,
+                      small_w_pixel)
+
         except:
             tkinter.messagebox.showwarning("警告", "参数文件错误，请检查文件格式及内容是否正确")
 
@@ -495,8 +502,8 @@ class MainPage(object):
         col_name = StringVar()  # 指定文件中选择的列
         repeat_num_col = StringVar()  # 指定文件中表示重复数量的列
 
-        init_window(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_w, dpi,
-                    select_excel, col_name, repeat_num_col, image_num_info)
+        init_window(input_path, output_path, image_number, col_num, row_spacing, col_spacing, small_h, small_h_pixel,
+                    small_w, small_w_pixel, dpi, select_excel, col_name, repeat_num_col, image_num_info)
 
         Label(self.root, text="选择文件夹:").grid(row=0, column=0, sticky=E)
         Entry(self.root, textvariable=input_path, width=30).grid(row=0, column=1, sticky=W)
@@ -536,8 +543,8 @@ class MainPage(object):
         progress_text.grid(row=14, columnspan=3)
         Button(self.root, text="读取已有参数",
                command=lambda: read_parameter(input_path, output_path, image_number, col_num, row_spacing, col_spacing,
-                                              small_h, small_w, dpi, select_excel, col_name, repeat_num_col,
-                                              image_num_info)).grid(row=13, column=0, sticky=W, padx=20)
+                                              small_h, small_h_pixel, small_w, small_w_pixel, dpi, select_excel,
+                                              col_name, repeat_num_col, image_num_info)).grid(row=13, column=0, sticky=W, padx=20)
         Button(self.root, text="保存当前参数",
                command=lambda: save_parameter(input_path.get(), output_path.get(), image_number.get(), col_num.get(),
                                               row_spacing.get(), col_spacing.get(), small_h.get(), small_w.get(),
